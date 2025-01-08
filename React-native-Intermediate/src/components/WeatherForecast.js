@@ -65,7 +65,8 @@ const WeatherForecast = () => {
         if (permissionResult === PermissionsAndroid.RESULTS.GRANTED) {
           getCurrentLocation();
         } else {
-          // permission denied, do nothing
+          setDefaultCityValues();
+          // permission denied
         }
       }
       fetchData();
@@ -82,6 +83,8 @@ const WeatherForecast = () => {
           const {city, state} = result;
           setSelectedCity(city);
           setSelectedState(state);
+        } else {
+          setDefaultCityValues();
         }
         // Use the coordinates as needed
       },
@@ -94,6 +97,13 @@ const WeatherForecast = () => {
         maximumAge: 10000,
       },
     );
+  };
+
+  const setDefaultCityValues = () => {
+    console.log('called.....');
+
+    setSelectedCity('Surat');
+    setSelectedState('Gujarat');
   };
 
   const renderCurrentWeatherCards = ({item}) => {
