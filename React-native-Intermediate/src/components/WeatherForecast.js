@@ -100,7 +100,7 @@ const WeatherForecast = () => {
   };
 
   const setDefaultCityValues = () => {
-    console.log('called.....');
+    // If geolocation API is not working then we can set with default values
 
     setSelectedCity('Surat');
     setSelectedState('Gujarat');
