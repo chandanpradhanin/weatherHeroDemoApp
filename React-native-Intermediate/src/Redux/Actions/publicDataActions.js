@@ -24,3 +24,10 @@ export const failed_weather_data = createAction(
     weather_data: {},
   }),
 );
+
+export const set_language_code = createAction(
+  types.SET_LANGUAGE_CODE,
+  languageCode => ({
+    languageCode,
+  }),
+);

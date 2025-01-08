@@ -7,32 +7,58 @@ import {
   FlatList,
   StyleSheet,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import {COLORS} from '../Assets/theme/COLOR';
 import {cities, states} from '../Assets/theme/appDataConfig';
+import strings from '../localizations';
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
-const CitySelectorModal = ({visible, onClose}) => {
-  const renderStates = ({item}) => (
-    <View>
-      <Text style={styles.stateName}>{item.name}</Text>
-      <View style={styles.cityInfoContent}>
-        <FlatList
-          data={cities.filter(city => city.stateId === item.id)}
-          renderItem={renderCities}
-          keyExtractor={item => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    </View>
+const CitySelectorModal = props => {
+  const {visible, onClose} = props;
+  const [searchText, setSearchText] = useState('');
+
+  const filteredCities = cities.filter(city =>
+    city.name.toLowerCase().includes(searchText.toLowerCase()),
   );
 
-  const renderCities = ({item}) => (
-    <TouchableOpacity onPress={() => {}}>
-      <Text style={styles.cityName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderStates = ({item}) => {
+    const actualCities = filteredCities.filter(
+      city => city.stateId === item.id,
+    );
+    let name = item?.name;
+
+    return (
+      <View>
+        <Text style={styles.stateName}>{item?.name}</Text>
+        <View style={styles.cityInfoContent}>
+          {actualCities.length > 0 ? (
+            <FlatList
+              data={actualCities}
+              renderItem={obj => renderCities(obj, name)}
+              keyExtractor={item => item.id.toString()}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <Text>No cities available</Text>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const renderCities = (item, state) => {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          props?.callback(item.item?.name, state);
+          onClose && onClose();
+        }}>
+        <Text style={styles.cityName}>{item?.item?.name}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -42,12 +68,19 @@ const CitySelectorModal = ({visible, onClose}) => {
       onRequestClose={onClose}>
       <View style={styles.modalContent}>
         <View style={styles.regionInfoContent}>
-          <Text style={styles.modalHeaderText}>Select Your State</Text>
+          <Text style={styles.modalHeaderText}>{strings.selectYourCity}</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={strings.searchCity}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
           <FlatList
             data={states}
             renderItem={renderStates}
             keyExtractor={item => item.id.toString()}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps={'handled'}
           />
           <TouchableOpacity onPress={onClose}>
             <Text style={styles.closeText}>Close</Text>
@@ -73,7 +106,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginVertical: 10,
     width: windowWidth * 0.9,
-    height: windowHeight * 0.8,
+    height: windowHeight * 0.6,
   },
   modalHeaderText: {
     fontSize: 20,
@@ -101,5 +134,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 9,
+  },
+  searchInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 20,
   },
 });

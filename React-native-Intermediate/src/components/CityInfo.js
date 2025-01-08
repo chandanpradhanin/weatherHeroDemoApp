@@ -32,6 +32,7 @@ const CityInfo = props => {
       </TouchableOpacity>
       <CitySelectorModal
         visible={showModal}
+        callback={props?.callback}
         onClose={() => setShowModal(false)}
       />
     </View>

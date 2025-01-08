@@ -1,0 +1,16 @@
+export default {
+  date: 'Fecha',
+  time: 'Hora',
+  greeting: 'Hola',
+  languageName: 'Español',
+  today: 'Hoy',
+  tomorrow: 'mañana',
+  currentlyShowingIn: 'Mostrando actualmente en',
+  fahrenheit: 'Fahrenheit',
+  celsius: 'Celsius',
+  currentLanguage: 'Idioma actual',
+  feelLike: 'Tener ganas de',
+  selectYourCity: 'Selecciona tu ciudad',
+  language: 'Idioma',
+  searchCity: 'Buscar ciudad...',
+};

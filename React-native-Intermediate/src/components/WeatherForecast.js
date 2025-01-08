@@ -4,8 +4,10 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -13,25 +15,86 @@ import {
 import {useDispatch, useSelector} from 'react-redux';
 import {COLORS} from '../Assets/theme/COLOR';
 import {request_weather_data} from '../Redux/Actions/publicDataActions';
-import {getWeatherIcon} from '../utils';
+import {
+  getActualUnit,
+  getCityAndState,
+  getWeatherIcon,
+  requestForLocationPermission,
+} from '../utils';
 import CityInfo from './CityInfo';
 import CurrentWeather from './CurrentWeather';
 import HourlyInfo from './HourlyInfo';
+import strings from '../localizations';
+import LanguageSelector from './LanguageSelector';
+import {AppImages} from '../Assets/Images';
+import Geolocation from 'react-native-geolocation-service';
+import {PermissionsAndroid} from 'react-native';
+
 const windowWidth = Dimensions.get('window').width;
 
 const WeatherForecast = () => {
-  const [selectedCity, setSelectedCity] = useState('Surat');
-  const [selectedState, setSelectedState] = useState('Gujarat');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [isInCelsius, setIsInCelsius] = useState(true);
+  const [isLanguageModalVisible, setIsLanguageModalVisible] = useState(false);
+
   const [selectedDayDate, setSelectedDayDate] = useState(
     new Date().toISOString().split('T')[0],
   );
-  const {weather_data, weather_loading} = useSelector(state => state.params);
-
+  const {weather_data, weather_loading, languageCode} = useSelector(
+    state => state.params,
+  );
   const dispatch = useDispatch();
 
   useEffect(() => {
-    dispatch(request_weather_data(selectedCity));
+    if (selectedCity !== '') {
+      dispatch(request_weather_data(selectedCity));
+    }
+  }, [dispatch, selectedCity]);
+
+  useEffect(() => {
+    strings.setLanguage(languageCode ? languageCode : 'en');
+  }, [languageCode]);
+
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      getCurrentLocation();
+    } else {
+      async function fetchData() {
+        const permissionResult = await requestForLocationPermission();
+        if (permissionResult === PermissionsAndroid.RESULTS.GRANTED) {
+          getCurrentLocation();
+        } else {
+          // permission denied, do nothing
+        }
+      }
+      fetchData();
+    }
   }, []);
+
+  const getCurrentLocation = () => {
+    Geolocation.getCurrentPosition(
+      async position => {
+        console.log('position:', position);
+        const {latitude, longitude} = position.coords;
+        const result = await getCityAndState(latitude, longitude);
+        if (result != null) {
+          const {city, state} = result;
+          setSelectedCity(city);
+          setSelectedState(state);
+        }
+        // Use the coordinates as needed
+      },
+      error => {
+        console.warn(error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000,
+      },
+    );
+  };
 
   const renderCurrentWeatherCards = ({item}) => {
     const today = new Date();
@@ -39,9 +102,9 @@ const WeatherForecast = () => {
 
     let dateString = cardDate.toLocaleDateString();
     if (cardDate.getDate() === today.getDate()) {
-      dateString = 'Today';
+      dateString = strings.today;
     } else if (cardDate.getDate() === today.getDate() + 1) {
-      dateString = 'Tomorrow';
+      dateString = strings.tomorrow;
     }
 
     const weatherIcon = getWeatherIcon(item.conditions);
@@ -76,14 +139,14 @@ const WeatherForecast = () => {
               ? {color: COLORS.light_shade}
               : {},
           ]}>
-          {item.temp}°C
+          {getActualUnit(item.temp, isInCelsius)}° {isInCelsius ? 'C' : 'F'}
         </Text>
       </TouchableOpacity>
     );
   };
 
   const renderHourlyInfo = ({item, index}) => {
-    return <HourlyInfo data={item} />;
+    return <HourlyInfo data={item} isDataShowingInCelsius={isInCelsius} />;
   };
 
   const getSelectedDateHours =
@@ -92,10 +155,46 @@ const WeatherForecast = () => {
   const getSelectedDay =
     weather_data?.days?.filter(a => a.datetime == selectedDayDate)?.[0] || [];
 
+  const toggleSwitch = () => setIsInCelsius(previousState => !previousState);
+  const onLanguageChange = () => setIsLanguageModalVisible(true);
+
   return (
     <View>
-      <CityInfo city={selectedCity} state={selectedState} />
+      {selectedCity && selectedCity !== '' ? (
+        <CityInfo
+          city={selectedCity}
+          state={selectedState}
+          callback={(city, state) => {
+            setSelectedState(state);
+            setSelectedCity(city);
+          }}
+        />
+      ) : null}
 
+      <View style={styles.optionView}>
+        <Text style={styles.leftTitleText}>{strings.currentlyShowingIn}: </Text>
+        <View style={styles.rightView}>
+          <Text style={styles.switchText}>{strings.fahrenheit}</Text>
+          <Switch
+            trackColor={{false: COLORS.windSpeedText, true: COLORS.primary}}
+            onValueChange={toggleSwitch}
+            value={isInCelsius}
+          />
+          <Text style={styles.switchText}>{strings.celsius}</Text>
+        </View>
+      </View>
+      <TouchableOpacity style={styles.optionView} onPress={onLanguageChange}>
+        <Text style={styles.leftTitleText}>{strings.currentLanguage}: </Text>
+        <View style={styles.rightView}>
+          <Text style={styles.languageText}>{strings.languageName}</Text>
+          <Image source={AppImages.next} style={styles.nextImage} />
+        </View>
+      </TouchableOpacity>
+      <LanguageSelector
+        languageCode={languageCode}
+        modalVisible={isLanguageModalVisible}
+        onClose={() => setIsLanguageModalVisible(false)}
+      />
       <ScrollView>
         {weather_loading ? (
           <ActivityIndicator size={'small'} color={COLORS.primary} />
@@ -114,7 +213,10 @@ const WeatherForecast = () => {
             )}
 
             {getSelectedDay && (
-              <CurrentWeather currentWeather={getSelectedDay} />
+              <CurrentWeather
+                currentWeather={getSelectedDay}
+                isDataShowingInCelsius={isInCelsius}
+              />
             )}
 
             <FlatList
@@ -210,12 +312,54 @@ const styles = StyleSheet.create({
     marginBottom: (windowWidth * 0.2) / 2,
     marginLeft: 14,
   },
-  selectCityHeaderText: {color: COLORS.windSpeedText, fontStyle: 'italic'},
+  selectCityHeaderText: {
+    color: COLORS.windSpeedText,
+    fontStyle: 'italic',
+  },
   list: {
     alignSelf: 'center',
     marginTop: 20,
     width: '100%',
     marginBottom: 70,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leftTitleText: {
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  rightView: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  languageText: {
+    fontSize: 15,
+    fontWeight: 'normal',
+    color: COLORS.primary,
+  },
+  switchText: {
+    fontSize: 15,
+    fontWeight: 'normal',
+    color: COLORS.primary,
+  },
+  optionView: {
+    marginTop: 10,
+    flexDirection: 'row',
+    marginHorizontal: 10,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    borderColor: COLORS.tempText,
+    borderWidth: 3,
+    borderRadius: 5,
+  },
+  nextImage: {
+    height: 15,
+    width: 15,
+    marginLeft: 10,
   },
 });
 
